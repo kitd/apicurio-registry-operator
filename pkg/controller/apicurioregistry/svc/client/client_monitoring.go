@@ -1,6 +1,8 @@
 package client
 
 import (
+	goCtx "context"
+
 	"github.com/Apicurio/apicurio-registry-operator/pkg/controller/apicurioregistry/common"
 	"github.com/Apicurio/apicurio-registry-operator/pkg/controller/apicurioregistry/loop/context"
 	monitoring "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1"
@@ -18,6 +20,7 @@ type MonitoringClient struct {
 	ctx             *context.LoopContext
 	client          *monclientv1.MonitoringV1Client
 	discoveryClient *discovery.DiscoveryClient
+	goCtx           goCtx.Context
 }
 
 func NewMonitoringClient(ctx *context.LoopContext, config *rest.Config) *MonitoringClient {
@@ -25,6 +28,7 @@ func NewMonitoringClient(ctx *context.LoopContext, config *rest.Config) *Monitor
 		ctx:             ctx,
 		client:          monclientv1.NewForConfigOrDie(config),
 		discoveryClient: discovery.NewDiscoveryClientForConfigOrDie(config),
+		goCtx:           goCtx.TODO(),
 	}
 }
 
@@ -35,7 +39,7 @@ func (this *MonitoringClient) CreateServiceMonitor(namespace common.Namespace, o
 	if err := controllerutil.SetControllerReference(getSpec(this.ctx), obj, this.ctx.GetScheme()); err != nil {
 		return nil, err
 	}
-	res, err := this.client.ServiceMonitors(namespace.Str()).Create(obj)
+	res, err := this.client.ServiceMonitors(namespace.Str()).Create(this.goCtx, obj, v1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -43,11 +47,11 @@ func (this *MonitoringClient) CreateServiceMonitor(namespace common.Namespace, o
 }
 
 func (this *MonitoringClient) GetServiceMonitor(namespace common.Namespace, name common.Name) (*monitoring.ServiceMonitor, error) {
-	return this.client.ServiceMonitors(namespace.Str()).Get(name.Str(), v1.GetOptions{})
+	return this.client.ServiceMonitors(namespace.Str()).Get(this.goCtx, name.Str(), v1.GetOptions{})
 }
 
 func (this *MonitoringClient) UpdateServiceMonitor(namespace common.Namespace, obj *monitoring.ServiceMonitor) (*monitoring.ServiceMonitor, error) {
-	return this.client.ServiceMonitors(namespace.Str()).Update(obj)
+	return this.client.ServiceMonitors(namespace.Str()).Update(this.goCtx, obj, v1.UpdateOptions{})
 }
 
 func (this *MonitoringClient) IsServiceMonitorRegistered() (bool, error) {
@@ -55,5 +59,5 @@ func (this *MonitoringClient) IsServiceMonitorRegistered() (bool, error) {
 }
 
 func (this *MonitoringClient) DeleteServiceMonitor(value *monitoring.ServiceMonitor, options *v1.DeleteOptions) error {
-	return this.client.ServiceMonitors(value.Namespace).Delete(value.Name, options)
+	return this.client.ServiceMonitors(value.Namespace).Delete(this.goCtx, value.Name, *options)
 }

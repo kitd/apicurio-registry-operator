@@ -9,6 +9,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+
+	goCtx "context"
 )
 
 // =====
@@ -17,6 +19,7 @@ type CRDClient struct {
 	ctx *context.LoopContext
 	//ctx.client should be used instead of this rest client
 	client *rest.RESTClient
+	goCtx  goCtx.Context
 }
 
 func NewCRDClient(ctx *context.LoopContext, config *rest.Config) *CRDClient {
@@ -35,6 +38,7 @@ func NewCRDClient(ctx *context.LoopContext, config *rest.Config) *CRDClient {
 	return &CRDClient{
 		client: c,
 		ctx:    ctx,
+		goCtx:  goCtx.TODO(),
 	}
 }
 
@@ -49,7 +53,7 @@ func (this *CRDClient) GetApicurioRegistry(namespace common.Namespace, name comm
 		Resource(ar.GroupResource).
 		Name(name.Str()).
 		VersionedParams(&meta.GetOptions{}, scheme.ParameterCodec).
-		Do().
+		Do(this.goCtx).
 		Into(&result)
 
 	return &result, err
@@ -63,7 +67,7 @@ func (this *CRDClient) UpdateApicurioRegistry(namespace common.Namespace, value 
 		Resource(ar.GroupResource).
 		Name(value.Name).
 		Body(value).
-		Do().
+		Do(this.goCtx).
 		Into(&result)
 
 	return &result, err
@@ -76,7 +80,7 @@ func (this *CRDClient) PatchApicurioRegistry(namespace common.Namespace, name co
 		Body(patchData).
 		Namespace(namespace.Str()).
 		Name(name.Str()).
-		Do().
+		Do(this.goCtx).
 		Error()
 	if err != nil {
 		return nil, err
@@ -89,7 +93,7 @@ func (this *CRDClient) PatchApicurioRegistry(namespace common.Namespace, name co
 		Body(patchData).
 		Namespace(namespace.Str()).
 		Name(name.Str()).
-		Do().
+		Do(this.goCtx).
 		Into(result)
 
 	return result, err

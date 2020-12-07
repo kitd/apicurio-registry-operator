@@ -1,6 +1,8 @@
 package client
 
 import (
+	goCtx "context"
+
 	"github.com/Apicurio/apicurio-registry-operator/pkg/controller/apicurioregistry/common"
 	"github.com/Apicurio/apicurio-registry-operator/pkg/controller/apicurioregistry/loop/context"
 	ocp_apps "github.com/openshift/api/apps/v1"
@@ -17,6 +19,7 @@ type OCPClient struct {
 	ctx            *context.LoopContext
 	ocpAppsClient  *ocp_apps_client.AppsV1Client
 	ocpRouteClient *ocp_route_client.RouteV1Client
+	goCtx          goCtx.Context
 }
 
 func NewOCPClient(ctx *context.LoopContext, clientConfig *rest.Config) *OCPClient {
@@ -24,6 +27,7 @@ func NewOCPClient(ctx *context.LoopContext, clientConfig *rest.Config) *OCPClien
 		ctx:            ctx,
 		ocpAppsClient:  ocp_apps_client.NewForConfigOrDie(clientConfig),
 		ocpRouteClient: ocp_route_client.NewForConfigOrDie(clientConfig),
+		goCtx:          goCtx.TODO(),
 	}
 	return this
 }
@@ -35,7 +39,7 @@ func (this *OCPClient) CreateDeployment(namespace common.Namespace, value *ocp_a
 	if err := controllerutil.SetControllerReference(getSpec(this.ctx), value, this.ctx.GetScheme()); err != nil {
 		return nil, err
 	}
-	res, err := this.ocpAppsClient.DeploymentConfigs(namespace.Str()).Create(value)
+	res, err := this.ocpAppsClient.DeploymentConfigs(namespace.Str()).Create(this.goCtx, value, meta.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -44,27 +48,27 @@ func (this *OCPClient) CreateDeployment(namespace common.Namespace, value *ocp_a
 
 func (this *OCPClient) GetDeployment(namespace common.Namespace, name common.Name, options *meta.GetOptions) (*ocp_apps.DeploymentConfig, error) {
 	return this.ocpAppsClient.DeploymentConfigs(namespace.Str()).
-		Get(name.Str(), *options)
+		Get(this.goCtx, name.Str(), *options)
 }
 
 func (this *OCPClient) UpdateDeployment(namespace common.Namespace, value *ocp_apps.DeploymentConfig) (*ocp_apps.DeploymentConfig, error) {
 	return this.ocpAppsClient.DeploymentConfigs(namespace.Str()).
-		Update(value)
+		Update(this.goCtx, value, meta.UpdateOptions{})
 }
 
 func (this *OCPClient) PatchDeployment(namespace common.Namespace, name common.Name, patchData []byte) (*ocp_apps.DeploymentConfig, error) {
 	return this.ocpAppsClient.DeploymentConfigs(namespace.Str()).
-		Patch(name.Str(), types.StrategicMergePatchType, patchData)
+		Patch(this.goCtx, name.Str(), types.StrategicMergePatchType, patchData, meta.PatchOptions{})
 }
 
 func (this *OCPClient) DeleteDeployment(value *ocp_apps.DeploymentConfig, options *meta.DeleteOptions) error {
 	return this.ocpAppsClient.DeploymentConfigs(value.Namespace).
-		Delete(value.Name, options)
+		Delete(this.goCtx, value.Name, *options)
 }
 
 func (this *OCPClient) GetDeployments(namespace common.Namespace, options *meta.ListOptions) (*ocp_apps.DeploymentConfigList, error) {
 	return this.ocpAppsClient.DeploymentConfigs(namespace.Str()).
-		List(*options)
+		List(this.goCtx, *options)
 }
 
 // ======
@@ -72,10 +76,10 @@ func (this *OCPClient) GetDeployments(namespace common.Namespace, options *meta.
 
 func (this *OCPClient) GetRoute(namespace common.Namespace, name common.Name, options *meta.GetOptions) (*ocp_route.Route, error) {
 	return this.ocpRouteClient.Routes(namespace.Str()).
-		Get(name.Str(), *options)
+		Get(this.goCtx, name.Str(), *options)
 }
 
 func (this *OCPClient) GetRoutes(namespace common.Namespace, options *meta.ListOptions) (*ocp_route.RouteList, error) {
 	return this.ocpRouteClient.Routes(namespace.Str()).
-		List(*options)
+		List(this.goCtx, *options)
 }
